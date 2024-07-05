@@ -1,7 +1,5 @@
 import pyrogram
 import os
-import asyncio
-import re
 import requests
 from PIL import Image
 from io import BytesIO
@@ -68,20 +66,11 @@ async def poster_command(bot, message):
         await message.reply("No poster available for this movie.")
         return
 
-    poster_url = f"https://image.tmdb.org/t/p/w1280{poster_path}"
-    poster_response = requests.get(poster_url)
-    if poster_response.status_code != 200:
-        await message.reply("Error fetching the movie poster. Please try again.")
-        return
+    # Construct URL for original size poster
+    poster_url = f"https://image.tmdb.org/t/p/original{poster_path}"
 
-    image = Image.open(BytesIO(poster_response.content))
-    if image.size != (1280, 720):
-        image = image.resize((1280, 720))
-
-    with BytesIO() as output:
-        image.save(output, format="JPEG")
-        output.seek(0)
-        await bot.send_photo(chat_id=message.chat.id, photo=output, caption=f"Poster of {movie['title']}")
+    # Send the poster as a thumbnail view
+    await bot.send_photo(chat_id=message.chat.id, photo=poster_url, caption=f"Poster of {movie['title']}", thumb=poster_url)
 
 def start_buttons(bot, update):
     bot = bot.get_me()
