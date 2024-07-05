@@ -3,7 +3,8 @@ import re
 import requests
 from PIL import Image
 from io import BytesIO
-from flask import Flask, request, jsonify
+import threading
+from flask import Flask
 import pyrogram
 
 # Initialize Flask app
@@ -35,8 +36,8 @@ about_message = """
 <b>• Source Code : <a href=https://github.com/YourUsername/MoviePosterBot>Click Here</a></b>"""
 
 @posterbot.on_message(pyrogram.filters.private & pyrogram.filters.command(["start"]))
-def start_command(bot, update):
-    update.reply(start_message.format(update.from_user.mention), reply_markup=start_buttons(bot, update), parse_mode=pyrogram.enums.ParseMode.HTML, disable_web_page_preview=True)
+def start_command(bot, message):
+    message.reply(start_message.format(message.from_user.mention), reply_markup=start_buttons(bot, message), parse_mode=pyrogram.enums.ParseMode.HTML, disable_web_page_preview=True)
 
 @posterbot.on_callback_query(pyrogram.filters.regex("start"))
 def start_callback(bot, update):
@@ -103,42 +104,16 @@ def about_buttons(bot, update):
     return pyrogram.types.InlineKeyboardMarkup(buttons)
 
 # Flask route for web support
-@app.route('/poster', methods=['GET'])
-def get_poster():
-    movie_name = request.args.get('movie_name')
-    if not movie_name:
-        return jsonify({"error": "Please provide a movie name"}), 400
+@app.route('/')
+def home():
+    return "Bot is running!"
 
-    tmdb_url = f"https://api.themoviedb.org/3/search/movie?api_key={tmdb_api_key}&query={movie_name}"
-    response = requests.get(tmdb_url)
-    if response.status_code != 200:
-        return jsonify({"error": "Error fetching movie details. Please try again."}), 500
-
-    data = response.json()
-    if not data['results']:
-        return jsonify({"error": "Movie not found. Please check the name and try again."}), 404
-
-    movie = data['results'][0]
-    poster_path = movie.get('poster_path')
-    if not poster_path:
-        return jsonify({"error": "No poster available for this movie."}), 404
-
-    poster_url = f"https://image.tmdb.org/t/p/w1280{poster_path}"
-    poster_response = requests.get(poster_url)
-    if poster_response.status_code != 200:
-        return jsonify({"error": "Error fetching the movie poster. Please try again."}), 500
-
-    image = Image.open(BytesIO(poster_response.content))
-    if image.size != (1280, 720):
-        image = image.resize((1280, 720))
-
-    with BytesIO() as output:
-        image.save(output, format="JPEG")
-        output.seek(0)
-        return jsonify({"poster_url": poster_url})
-
-if __name__ == "__main__":
+def run_bot():
     print("Telegram MoviePosterBot Start")
     print("Bot Created By https://github.com/YourUsername")
-    posterbot.start()
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+    posterbot.run()
+
+if __name__ == "__main__":
+    bot_thread = threading.Thread(target=run_bot)
+    bot_thread.start()
+    app.run(host='0.0.0.0', port=8080)
